@@ -1,4 +1,5 @@
 
+import os
 from models.RiskClusterer import RiskClusterer
 from models.RiskProcessor import RiskDataProcessor
 
@@ -8,13 +9,16 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
-boundary_path = "./DATAV2/Santa Barbara - Barangay Boundary.gpkg"
+# Get the directory where this script is located
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+boundary_path = os.path.join(BASE_DIR, "DATAV2", "Santa Barbara - Barangay Boundary.gpkg")
 risk_paths = {
-    "Flooding": "./DATAV2/Risks/Santa Barbara - Flooding.gpkg",
-    "Landslide": "./DATAV2/Risks/Santa Barbara - Landslide.gpkg",
-    "Earthquake": "./DATAV2/Risks/Santa Barbara - Nearest Fault.gpkg"
+    "Flooding": os.path.join(BASE_DIR, "DATAV2", "Risks", "Santa Barbara - Flooding.gpkg"),
+    "Landslide": os.path.join(BASE_DIR, "DATAV2", "Risks", "Santa Barbara - Landslide.gpkg"),
+    "Earthquake": os.path.join(BASE_DIR, "DATAV2", "Risks", "Santa Barbara - Nearest Fault.gpkg")
 }
-population_path = "./DATAV2/Risks/Santa Barbara - Vulnerability Data.csv"
+population_path = os.path.join(BASE_DIR, "DATAV2", "Risks", "Santa Barbara - Vulnerability Data.csv")
 
 processor = RiskDataProcessor(boundary_path, risk_paths, population_path)
 processor.load_data()
@@ -23,6 +27,17 @@ risk_gdf = processor.preprocess(selected_keys=["Flooding", "Landslide"], disaste
 clusterer = RiskClusterer(n_clusters=10)
 risk_with_clusters = clusterer.cluster_and_evaluate(risk_gdf)
 centroid_gdf = clusterer.get_centroid_gdf(crs=processor.boundary.crs)
+
+@app.route('/')
+def home():
+    return {
+        'message': 'EMERGE Backend API is running!',
+        'endpoints': {
+            'risk_data': '/api/risk-data (POST)',
+            'voronoi_data': '/api/responsiblity (POST)'
+        },
+        'status': 'online'
+    }
     
 @app.route('/api/risk-data', methods=['POST'])
 def get_risk_data():
@@ -53,7 +68,7 @@ def get_voronoi():
     return voronoi.to_json()
 
 if __name__ == "__main__":
-    app.run()
+    app.run(debug=True, host='0.0.0.0', port=5000)
 
 
 
